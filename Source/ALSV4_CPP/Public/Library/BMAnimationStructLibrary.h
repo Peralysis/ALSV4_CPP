@@ -138,9 +138,6 @@ struct FBMAnimCharacterInformation
 	EBMStance Stance = EBMStance::Standing;
 
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly)
-	EBMViewMode ViewMode = EBMViewMode::ThirdPerson;
-
-	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly)
 	EBMOverlayState OverlayState = EBMOverlayState::Default;
 };
 
@@ -461,6 +458,9 @@ USTRUCT(BlueprintType)
 struct FBMAnimConfiguration
 {
 	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	bool bEnableOptimizations = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	float AnimatedWalkSpeed = 150.0f;

@@ -46,8 +46,5 @@ protected:
 	EBMStance Stance;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	EBMViewMode ViewMode;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	bool bRightShoulder;
 };

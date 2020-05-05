@@ -67,13 +67,6 @@ enum class EBMStance : uint8
 };
 
 UENUM(BlueprintType)
-enum class EBMViewMode : uint8
-{
-	ThirdPerson,
-	FirstPerson
-};
-
-UENUM(BlueprintType)
 enum class EBMAnimFeatureExample : uint8
 {
 	StrideBlending,

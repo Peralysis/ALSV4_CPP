@@ -8,14 +8,13 @@
 
 void UBMPlayerCameraBehavior::NativeUpdateAnimation(float DeltaSeconds)
 {
-	if (IsValid(ControlledPawn))
+	if (ControlledPawn)
 	{
 		MovementState = ControlledPawn->GetMovementState();
 		MovementAction = ControlledPawn->GetMovementAction();
 		RotationMode = ControlledPawn->GetRotationMode();
 		Gait = ControlledPawn->GetGait();
 		Stance = ControlledPawn->GetStance();
-		ViewMode = ControlledPawn->GetViewMode();
 		bRightShoulder = ControlledPawn->IsRightShoulder();
 	}
 }

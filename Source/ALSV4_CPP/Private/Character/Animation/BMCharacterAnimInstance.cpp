@@ -34,10 +34,10 @@ void UBMCharacterAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	if (CharacterInformation.MovementState == EBMMovementState::Grounded)
 	{
 		// Check If Moving Or Not & Enable Movement Animations if IsMoving and HasMovementInput, or if the Speed is greater than 150.
-		const bool prevShouldMove = Grounded.bShouldMove;
+		const bool PrevShouldMove = Grounded.bShouldMove;
 		Grounded.bShouldMove = ShouldMoveCheck();
 
-		if (prevShouldMove == false && Grounded.bShouldMove)
+		if (PrevShouldMove == false && Grounded.bShouldMove)
 		{
 			// Do When Starting To Move
 			TurnInPlaceValues.ElapsedDelayTime = 0.0f;
@@ -128,14 +128,12 @@ bool UBMCharacterAnimInstance::ShouldMoveCheck()
 
 bool UBMCharacterAnimInstance::CanRotateInPlace()
 {
-	return CharacterInformation.RotationMode == EBMRotationMode::Aiming ||
-		CharacterInformation.ViewMode == EBMViewMode::FirstPerson;
+	return CharacterInformation.RotationMode == EBMRotationMode::Aiming;
 }
 
 bool UBMCharacterAnimInstance::CanTurnInPlace()
 {
 	return CharacterInformation.RotationMode == EBMRotationMode::LookingDirection &&
-		CharacterInformation.ViewMode == EBMViewMode::ThirdPerson &&
 		GetCurveValue(FName(TEXT("Enable_Transition"))) > 0.99f;
 }
 
@@ -161,7 +159,6 @@ void UBMCharacterAnimInstance::OnPivotDelay()
 
 void UBMCharacterAnimInstance::UpdateCharacterInfo()
 {
-	// TODO: Maybe access those directly from character?
 	CharacterInformation.Velocity = Character->GetVelocity();
 	CharacterInformation.Acceleration = Character->GetCurrentAcceleration();
 	CharacterInformation.MovementInput = Character->GetMovementInput();
@@ -177,7 +174,6 @@ void UBMCharacterAnimInstance::UpdateCharacterInfo()
 	CharacterInformation.RotationMode = Character->GetRotationMode();
 	CharacterInformation.Gait = Character->GetGait();
 	CharacterInformation.Stance = Character->GetStance();
-	CharacterInformation.ViewMode = Character->GetViewMode();
 	CharacterInformation.OverlayState = Character->GetOverlayState();
 }
 
@@ -273,6 +269,11 @@ void UBMCharacterAnimInstance::UpdateLayerValues()
 
 void UBMCharacterAnimInstance::UpdateFootIK(float DeltaSeconds)
 {
+	if (Config.bEnableOptimizations)
+	{
+		return;
+	}
+	
 	// Update Foot Locking values.
 	SetFootLocking(DeltaSeconds, FName(TEXT("Enable_FootIK_L")), FName(TEXT("FootLock_L")),
 	               FName(TEXT("ik_foot_l")), FootIKValues.FootLock_L_Alpha,
@@ -554,10 +555,13 @@ void UBMCharacterAnimInstance::UpdateMovementValues(float DeltaSeconds)
 
 	// Set the Relative Acceleration Amount and Interp the Lean Amount.
 	Grounded.RelativeAccelerationAmount = CalculateRelativeAccelerationAmount();
-	Grounded.LeanAmount.LR = FMath::FInterpTo(Grounded.LeanAmount.LR, Grounded.RelativeAccelerationAmount.Y,
-	                                          DeltaSeconds, Config.GroundedLeanInterpSpeed);
-	Grounded.LeanAmount.FB = FMath::FInterpTo(Grounded.LeanAmount.FB, Grounded.RelativeAccelerationAmount.X,
-	                                          DeltaSeconds, Config.GroundedLeanInterpSpeed);
+	if (!Config.bEnableOptimizations)
+	{
+		Grounded.LeanAmount.LR = FMath::FInterpTo(Grounded.LeanAmount.LR, Grounded.RelativeAccelerationAmount.Y,
+		                                          DeltaSeconds, Config.GroundedLeanInterpSpeed);
+		Grounded.LeanAmount.FB = FMath::FInterpTo(Grounded.LeanAmount.FB, Grounded.RelativeAccelerationAmount.X,
+		                                          DeltaSeconds, Config.GroundedLeanInterpSpeed);
+	}
 
 	// Set the Walk Run Blend
 	Grounded.WalkRunBlend = CalculateWalkRunBlend();

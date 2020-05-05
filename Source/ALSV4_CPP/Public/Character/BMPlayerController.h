@@ -55,12 +55,6 @@ private:
 	/** Last time the 'first' crouch/roll button is pressed */
 	float LastStanceInputTime = 0.0f;
 
-	/** Last time the camera action button is pressed */
-	float CameraActionPressedTime = 0.0f;
-
-	/* Timer to manage camera mode swap action */
-	FTimerHandle OnCameraModeSwapTimer;
-
 private:
 	void PlayerForwardMovementInput(float Value);
 
@@ -83,10 +77,6 @@ private:
 	void AimReleasedAction();
 
 	void CameraPressedAction();
-
-	void CameraReleasedAction();
-
-	void OnSwitchCameraMode();
 
 	void StancePressedAction();
 

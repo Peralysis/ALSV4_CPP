@@ -83,6 +83,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Grounded")
 	bool CanDynamicTransition();
 
+	UFUNCTION(BlueprintCallable, Category = "Config")
+	void EnableOptimization()
+	{
+		Config.bEnableOptimizations = true;
+	};
+
 private:
 	void PlayDynamicTransitionDelay();
 

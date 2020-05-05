@@ -6,6 +6,8 @@
 #include "Camera/PlayerCameraManager.h"
 #include "BMPlayerCameraManager.generated.h"
 
+#define DEBUG_CAMERA 0
+
 class ABMBaseCharacter;
 
 /**
@@ -25,10 +27,6 @@ public:
 	UFUNCTION(BlueprintCallable)
 	float GetCameraBehaviorParam(FName CurveName);
 
-	/** Implement debug logic in BP */
-	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent)
-	void DrawDebugTargets(FVector PivotTargetLocation);
-
 protected:
 	virtual void UpdateViewTargetInternal(FTViewTarget& OutVT, float DeltaTime);
 
@@ -39,6 +37,9 @@ protected:
 	UFUNCTION(BlueprintCallable)
 	bool CustomCameraBehavior(float DeltaTime, FVector& Location, FRotator& Rotation, float& FOV);
 
+private:
+	void DrawDebugTargets(FVector PivotTargetLocation);
+	
 public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
 	ABMBaseCharacter* ControlledCharacter = nullptr;

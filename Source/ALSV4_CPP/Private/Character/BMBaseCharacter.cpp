@@ -12,6 +12,9 @@
 #include "Curves/CurveFloat.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/KismetMathLibrary.h"
+#if DEBUG_BASECHAR
+#include "DrawDebugHelpers.h"
+#endif
 
 ABMBaseCharacter::ABMBaseCharacter()
 {
@@ -53,6 +56,10 @@ void ABMBaseCharacter::BeginPlay()
 	if (IsValid(GetMesh()->GetAnimInstance()))
 	{
 		MainAnimInstance = Cast<UBMCharacterAnimInstance>(GetMesh()->GetAnimInstance());
+		if (bEnableOptimization)
+		{
+			MainAnimInstance->EnableOptimization();
+		}
 	}
 
 	// Set the Movement Model
@@ -61,7 +68,6 @@ void ABMBaseCharacter::BeginPlay()
 	// Update states to use the initial desired values.
 	SetGait(DesiredGait);
 	SetRotationMode(DesiredRotationMode);
-	SetViewMode(ViewMode);
 	SetOverlayState(OverlayState);
 
 	if (Stance == EBMStance::Standing)
@@ -210,16 +216,6 @@ void ABMBaseCharacter::SetGait(const EBMGait NewGait)
 	}
 }
 
-void ABMBaseCharacter::SetViewMode(const EBMViewMode NewViewMode)
-{
-	if (ViewMode != NewViewMode)
-	{
-		EBMViewMode Prev = ViewMode;
-		ViewMode = NewViewMode;
-		OnViewModeChanged(Prev);
-	}
-}
-
 void ABMBaseCharacter::SetOverlayState(const EBMOverlayState NewState)
 {
 	if (OverlayState != NewState)
@@ -253,6 +249,68 @@ void ABMBaseCharacter::SetMovementModel()
 		MovementModel.DataTable->FindRow<FBMMovementStateSettings>(MovementModel.RowName, ContextString);
 	check(OutRow);
 	MovementData = *OutRow;
+}
+
+void ABMBaseCharacter::DrawDebugSpheres()
+{
+#if DEBUG_BASECHAR
+	UWorld* World = GetWorld();
+	check(World);
+
+	// Velocity Arrow
+	FVector LineStart = GetActorLocation();
+	LineStart.Z -= GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+	FVector LineEnd;
+	FColor ArrowColor;
+	if (GetVelocity().IsNearlyZero())
+	{
+		LineEnd = LastVelocityRotation.Vector();
+		ArrowColor = FColor::Purple;
+	}
+	else
+	{
+		LineEnd = GetVelocity();
+		ArrowColor = FColor::Magenta;
+	}
+	LineEnd = LineStart +
+		LineEnd.GetUnsafeNormal() * FMath::GetMappedRangeValueClamped(FVector2D(0.0f, GetCharacterMovement()->MaxWalkSpeed),
+		                                                              FVector2D(50.0f, 75.0f), GetVelocity().Size());
+	DrawDebugDirectionalArrow(World, LineStart, LineEnd, 60.0f, ArrowColor, false, 0.0f, 0, 5.0f);
+
+	// Movement Input Arrow
+	LineStart = GetActorLocation();
+	LineStart.Z -= GetCapsuleComponent()->GetScaledCapsuleHalfHeight() - 3.5f;
+	if (GetVelocity().IsNearlyZero())
+	{
+		LineEnd = LastMovementInputRotation.Vector();
+		ArrowColor = FColor::Yellow;
+	}
+	else
+	{
+		LineEnd = GetCharacterMovement()->GetCurrentAcceleration();;
+		ArrowColor = FColor::Orange;
+	}
+	LineEnd = LineStart +
+		LineEnd.GetUnsafeNormal() * FMath::GetMappedRangeValueClamped(FVector2D(0.0f, 1.0f),
+		                                                              FVector2D(50.0f, 75.0f),
+		                                                              GetCharacterMovement()->GetCurrentAcceleration().Size() /
+		                                                              GetCharacterMovement()->GetMaxAcceleration());
+	DrawDebugDirectionalArrow(World, LineStart, LineEnd, 50.0f, ArrowColor, false, 0.0f, 0, 3.0f);
+
+	// Target Rotation Arrow
+	LineStart = GetActorLocation();
+	LineStart.Z -= GetCapsuleComponent()->GetScaledCapsuleHalfHeight() - 7.0f;
+	LineEnd = LineStart + (TargetRotation.Vector().GetUnsafeNormal() * 50.0f);
+	DrawDebugDirectionalArrow(World, LineStart, LineEnd, 50.0f, FColor::Blue, false, 0.0f, 0, 3.0f);
+
+	// Aiming Rotation Cone
+	DrawDebugCone(World, GetMesh()->GetSocketLocation(FName(TEXT("FP_Camera"))), GetControlRotation().Vector().GetUnsafeNormal(), 100.0f,
+	              FMath::DegreesToRadians(30.0f), FMath::DegreesToRadians(30.0f), 8, FColor::Blue, false, 0.0f, 0, 0.5f);
+
+	// Capsule
+	DrawDebugCapsule(World, GetActorLocation(), GetCapsuleComponent()->GetScaledCapsuleHalfHeight(),
+	                 GetCapsuleComponent()->GetScaledCapsuleRadius(), GetActorRotation().Quaternion(), FColor::Black, false, 0.0f, 0, 0.5f);
+#endif
 }
 
 FBMMovementSettings ABMBaseCharacter::GetTargetMovementSettings()
@@ -347,27 +405,21 @@ float ABMBaseCharacter::GetAnimCurveValue(FName CurveName)
 	return 0.0f;
 }
 
-ECollisionChannel ABMBaseCharacter::GetThirdPersonTraceParams(FVector& TraceOrigin, float& TraceRadius)
+ECollisionChannel ABMBaseCharacter::GetTraceParams(FVector& TraceOrigin, float& TraceRadius)
 {
 	TraceOrigin = GetActorLocation();
 	TraceRadius = 10.0f;
 	return ECC_Visibility;
 }
 
-FTransform ABMBaseCharacter::GetThirdPersonPivotTarget()
+FTransform ABMBaseCharacter::GetPivotTarget()
 {
 	return GetActorTransform();
 }
 
-FVector ABMBaseCharacter::GetFirstPersonCameraTarget()
+void ABMBaseCharacter::GetCameraParameters(float& FOVOut, bool& bRightShoulderOut)
 {
-	return GetMesh()->GetSocketLocation(FName(TEXT("FP_Camera")));
-}
-
-void ABMBaseCharacter::GetCameraParameters(float& TPFOVOut, float& FPFOVOut, bool& bRightShoulderOut)
-{
-	TPFOVOut = ThirdPersonFOV;
-	FPFOVOut = FirstPersonFOV;
+	FOVOut = FOV;
 	bRightShoulderOut = bRightShoulder;
 }
 
@@ -500,33 +552,10 @@ void ABMBaseCharacter::OnStanceChanged(const EBMStance PreviousStance)
 
 void ABMBaseCharacter::OnRotationModeChanged(EBMRotationMode PreviousRotationMode)
 {
-	if (RotationMode == EBMRotationMode::VelocityDirection && ViewMode == EBMViewMode::FirstPerson)
-	{
-		// If the new rotation mode is Velocity Direction and the character is in First Person,
-		// set the viewmode to Third Person.
-		SetViewMode(EBMViewMode::ThirdPerson);
-	}
 }
 
 void ABMBaseCharacter::OnGaitChanged(const EBMGait PreviousGait)
 {
-}
-
-void ABMBaseCharacter::OnViewModeChanged(const EBMViewMode PreviousViewMode)
-{
-	if (ViewMode == EBMViewMode::ThirdPerson)
-	{
-		if (RotationMode == EBMRotationMode::VelocityDirection || RotationMode == EBMRotationMode::LookingDirection)
-		{
-			// If Third Person, set the rotation mode back to the desired mode.
-			SetRotationMode(DesiredRotationMode);
-		}
-	}
-	else if (ViewMode == EBMViewMode::FirstPerson && RotationMode == EBMRotationMode::VelocityDirection)
-	{
-		// If First Person, set the rotation mode to looking direction if currently in the velocity direction mode.
-		SetRotationMode(EBMRotationMode::LookingDirection);
-	}
 }
 
 void ABMBaseCharacter::OnOverlayStateChanged(const EBMOverlayState PreviousState)
@@ -715,8 +744,7 @@ void ABMBaseCharacter::UpdateGroundedRotation(float DeltaTime)
 		{
 			// Not Moving
 
-			if (ViewMode == EBMViewMode::ThirdPerson && RotationMode == EBMRotationMode::Aiming ||
-				ViewMode == EBMViewMode::FirstPerson)
+			if (RotationMode == EBMRotationMode::Aiming)
 			{
 				LimitRotation(-100.0f, 100.0f, 20.0f, DeltaTime);
 			}
@@ -769,13 +797,13 @@ void ABMBaseCharacter::UpdateInAirRotation(float DeltaTime)
 
 static FTransform TransfromSub(const FTransform& T1, const FTransform& T2)
 {
-	return FTransform(T1.GetRotation().Rotator() - T2.GetRotation().Rotator(),
+	return FTransform(T1.Rotator() - T2.Rotator(),
 	                  T1.GetLocation() - T2.GetLocation(), T1.GetScale3D() - T2.GetScale3D());
 }
 
 static FTransform TransfromAdd(const FTransform& T1, const FTransform& T2)
 {
-	return FTransform(T1.GetRotation().Rotator() + T2.GetRotation().Rotator(),
+	return FTransform(T1.Rotator() + T2.Rotator(),
 	                  T1.GetLocation() + T2.GetLocation(), T1.GetScale3D() + T2.GetScale3D());
 }
 
@@ -847,12 +875,17 @@ void ABMBaseCharacter::MantleStart(float MantleHeight, const FBMComponentAndTran
 
 	// Step 8: Prevent Incorrect Rotation
 	FRotator ForcedRotation = GetCapsuleComponent()->GetComponentRotation();
-	ForcedRotation.Yaw = MantleTarget.GetRotation().Rotator().Yaw;
+	ForcedRotation.Yaw = MantleTarget.Rotator().Yaw;
 	GetCapsuleComponent()->SetWorldRotation(ForcedRotation);
 }
 
 bool ABMBaseCharacter::MantleCheck(const FBMMantleTraceSettings& TraceSettings, EDrawDebugTrace::Type DebugType)
 {
+	if (!bAllowMantle)
+	{
+		return false;
+	}
+
 	// Step 1: Trace forward to find a wall / object the character cannot walk on.
 	const FVector& CapsuleBaseLocation = GetCapsuleBaseLocation(2.0f, GetCapsuleComponent());
 	FVector TraceStart = CapsuleBaseLocation + GetPlayerMovementInput() * -30.0f;
@@ -997,7 +1030,7 @@ void ABMBaseCharacter::MantleUpdate(float BlendIn)
 		UKismetMathLibrary::TLerp(TransfromAdd(MantleTarget, MantleActualStartOffset), ResultLerp, BlendIn);
 
 	// Step 4: Set the actors location and rotation to the Lerped Target.
-	SetActorLocationAndTargetRotation(LerpedTarget.GetLocation(), LerpedTarget.GetRotation().Rotator());
+	SetActorLocationAndTargetRotation(LerpedTarget.GetLocation(), LerpedTarget.Rotator());
 }
 
 void ABMBaseCharacter::MantleEnd()
@@ -1113,11 +1146,20 @@ EBMGait ABMBaseCharacter::GetActualGait(EBMGait AllowedGait)
 void ABMBaseCharacter::SmoothCharacterRotation(FRotator Target, float TargetInterpSpeed, float ActorInterpSpeed,
                                                float DeltaTime)
 {
-	// Interpolate the Target Rotation for extra smooth rotation behavior
-	TargetRotation =
-		FMath::RInterpConstantTo(TargetRotation, Target, DeltaTime, TargetInterpSpeed);
-	SetActorRotation(
-		FMath::RInterpTo(GetActorRotation(), TargetRotation, DeltaTime, ActorInterpSpeed));
+	if (bEnableOptimization)
+	{
+		TargetRotation = Target;
+		SetActorRotation(
+			FMath::RInterpTo(GetActorRotation(), Target, DeltaTime, ActorInterpSpeed));
+	}
+	else
+	{
+		// Interpolate the Target Rotation for extra smooth rotation behavior
+		TargetRotation =
+			FMath::RInterpConstantTo(TargetRotation, Target, DeltaTime, TargetInterpSpeed);
+		SetActorRotation(
+			FMath::RInterpTo(GetActorRotation(), TargetRotation, DeltaTime, ActorInterpSpeed));
+	}
 }
 
 float ABMBaseCharacter::CalculateGroundedRotationRate()

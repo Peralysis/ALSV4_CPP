@@ -13,6 +13,8 @@
 
 #include "BMBaseCharacter.generated.h"
 
+#define DEBUG_BASECHAR 0
+
 class UTimelineComponent;
 class UAnimInstance;
 class UAnimMontage;
@@ -75,12 +77,6 @@ public:
 
 	UFUNCTION(BlueprintGetter, Category = "Character States")
 	EBMGait GetGait() { return Gait; }
-
-	UFUNCTION(BlueprintCallable, Category = "Character States")
-	void SetViewMode(EBMViewMode NewViewMode);
-
-	UFUNCTION(BlueprintGetter, Category = "Character States")
-	EBMViewMode GetViewMode() { return ViewMode; }
 
 	UFUNCTION(BlueprintCallable, Category = "Character States")
 	void SetOverlayState(EBMOverlayState NewState);
@@ -167,10 +163,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Utility")
 	float GetAnimCurveValue(FName CurveName);
 
-	/** Implement on BP to draw debug spheres */
-	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category = "Debug")
-	void DrawDebugSpheres();
-
 	/** Camera System */
 
 	UFUNCTION(BlueprintGetter, Category = "Camera System")
@@ -180,16 +172,13 @@ public:
 	void SetRightShoulder(bool bNewRightShoulder) { bRightShoulder = bNewRightShoulder; }
 
 	UFUNCTION(BlueprintCallable, Category = "Camera System")
-	virtual ECollisionChannel GetThirdPersonTraceParams(FVector& TraceOrigin, float& TraceRadius);
+	virtual ECollisionChannel GetTraceParams(FVector& TraceOrigin, float& TraceRadius);
 
 	UFUNCTION(BlueprintCallable, Category = "Camera System")
-	virtual FTransform GetThirdPersonPivotTarget();
+	virtual FTransform GetPivotTarget();
 
 	UFUNCTION(BlueprintCallable, Category = "Camera System")
-	virtual FVector GetFirstPersonCameraTarget();
-
-	UFUNCTION(BlueprintCallable, Category = "Camera System")
-	void GetCameraParameters(float& TPFOVOut, float& FPFOVOut, bool& bRightShoulderOut);
+	void GetCameraParameters(float& TPFOVOut, bool& bRightShoulderOut);
 
 	/** Essential Information Getters */
 
@@ -238,8 +227,6 @@ protected:
 	virtual void OnRotationModeChanged(EBMRotationMode PreviousRotationMode);
 
 	virtual void OnGaitChanged(EBMGait PreviousGait);
-
-	virtual void OnViewModeChanged(EBMViewMode PreviousViewMode);
 
 	virtual void OnOverlayStateChanged(EBMOverlayState PreviousState);
 
@@ -295,6 +282,8 @@ protected:
 
 	void SetMovementModel();
 
+	void DrawDebugSpheres();
+
 protected:
 	/** Input */
 
@@ -310,10 +299,7 @@ protected:
 	/** Camera System */
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Camera System")
-	float ThirdPersonFOV = 90.0f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Camera System")
-	float FirstPersonFOV = 90.0f;
+	float FOV = 90.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Camera System")
 	bool bRightShoulder = false;
@@ -324,6 +310,10 @@ protected:
 	EBMOverlayState OverlayState = EBMOverlayState::Default;
 
 	/** Movement System */
+
+	/** Enabled optimizations in attached anim instance & this class */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement System")
+	bool bEnableOptimization = false;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Movement System")
 	FBMMovementSettings CurrentMovementSettings;
@@ -401,9 +391,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "State Values")
 	EBMStance Stance = EBMStance::Standing;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "State Values")
-	EBMViewMode ViewMode = EBMViewMode::ThirdPerson;
-
 	/** Movement System */
 
 	UPROPERTY(BlueprintReadOnly, Category = "Movement System")
@@ -421,6 +408,9 @@ protected:
 	float YawOffset = 0.0f;
 
 	/** Mantle System */
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mantle System")
+	bool bAllowMantle = true;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Mantle System")
 	FBMMantleParams MantleParams;

@@ -67,7 +67,7 @@ void ABMCharacter::RagdollEnd()
 	UpdateHeldObject();
 }
 
-ECollisionChannel ABMCharacter::GetThirdPersonTraceParams(FVector& TraceOrigin, float& TraceRadius)
+ECollisionChannel ABMCharacter::GetTraceParams(FVector& TraceOrigin, float& TraceRadius)
 {
 	if (bRightShoulder)
 	{
@@ -83,16 +83,11 @@ ECollisionChannel ABMCharacter::GetThirdPersonTraceParams(FVector& TraceOrigin, 
 	return ECC_Camera;
 }
 
-FTransform ABMCharacter::GetThirdPersonPivotTarget()
+FTransform ABMCharacter::GetPivotTarget()
 {
 	return FTransform(GetActorRotation(),
 	                  (GetMesh()->GetSocketLocation(TEXT("Head")) + GetMesh()->GetSocketLocation(TEXT("Root"))) / 2.0f,
 	                  FVector::OneVector);
-}
-
-FVector ABMCharacter::GetFirstPersonCameraTarget()
-{
-	return GetMesh()->GetSocketLocation(TEXT("FP_Camera"));
 }
 
 void ABMCharacter::OnOverlayStateChanged(EBMOverlayState PreviousState)

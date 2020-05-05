@@ -6,6 +6,9 @@
 #include "Character/BMBaseCharacter.h"
 #include "Character/Animation/BMPlayerCameraBehavior.h"
 #include "Kismet/KismetMathLibrary.h"
+#if DEBUG_CAMERA
+#include "DrawDebugHelpers.h"
+#endif
 
 ABMPlayerCameraManager::ABMPlayerCameraManager()
 {
@@ -26,6 +29,8 @@ void ABMPlayerCameraManager::OnPossess(ABMBaseCharacter* NewCharacter)
 	{
 		CastedBehv->PlayerController = GetOwningPlayerController();
 		CastedBehv->ControlledPawn = ControlledCharacter;
+		TargetCameraLocation = ControlledCharacter->GetPivotTarget().GetLocation();
+		TargetCameraRotation = ControlledCharacter->GetPivotTarget().Rotator();
 	}
 }
 
@@ -37,6 +42,19 @@ float ABMPlayerCameraManager::GetCameraBehaviorParam(FName CurveName)
 		return Inst->GetCurveValue(CurveName);
 	}
 	return 0.0f;
+}
+
+void ABMPlayerCameraManager::DrawDebugTargets(FVector PivotTargetLocation)
+{
+#if DEBUG_CAMERA
+	UWorld* World = GetWorld();
+	check(World);
+	DrawDebugSphere(World, PivotTargetLocation, 16.0f, 8, FColor::Green, false, 0.0f, 0, 0.5f);
+	DrawDebugSphere(World, SmoothedPivotTarget.GetLocation(), 16.0f, 8, FColor::Orange, false, 0.0f, 0, 0.5f);
+	DrawDebugSphere(World, PivotLocation, 16.0f, 8, FColor::Blue, false, 0.0f, 0, 1.0f);
+	DrawDebugLine(World, SmoothedPivotTarget.GetLocation(), PivotTargetLocation, FColor::Orange, false, 0.0f, 0, 1.0f);
+	DrawDebugLine(World, PivotLocation, SmoothedPivotTarget.GetLocation(), FColor::Blue, false, 0.0f, 0, 1.0f);
+#endif
 }
 
 void ABMPlayerCameraManager::UpdateViewTargetInternal(FTViewTarget& OutVT, float DeltaTime)
@@ -81,12 +99,10 @@ FVector ABMPlayerCameraManager::CalculateAxisIndependentLag(FVector CurrentLocat
 bool ABMPlayerCameraManager::CustomCameraBehavior(float DeltaTime, FVector& Location, FRotator& Rotation, float& FOV)
 {
 	// Step 1: Get Camera Parameters from CharacterBP via the Camera Interface
-	const FTransform& PivotTarget = ControlledCharacter->GetThirdPersonPivotTarget();
-	const FVector& FPTarget = ControlledCharacter->GetFirstPersonCameraTarget();
+	const FTransform& PivotTarget = ControlledCharacter->GetPivotTarget();
 	float TPFOV = 90.0f;
-	float FPFOV = 90.0f;
 	bool bRightShoulder = false;
-	ControlledCharacter->GetCameraParameters(TPFOV, FPFOV, bRightShoulder);
+	ControlledCharacter->GetCameraParameters(TPFOV, bRightShoulder);
 
 	// Step 2: Calculate Target Camera Rotation. Use the Control Rotation and interpolate for smooth camera rotation.
 	const FRotator& InterpResult = FMath::RInterpTo(GetCameraRotation(),
@@ -131,7 +147,7 @@ bool ABMPlayerCameraManager::CustomCameraBehavior(float DeltaTime, FVector& Loca
 	// Functions like the normal spring arm, but can allow for different trace origins regardless of the pivot
 	FVector TraceOrigin;
 	float TraceRadius = 0.0f;
-	ECollisionChannel TraceChannel = ControlledCharacter->GetThirdPersonTraceParams(TraceOrigin, TraceRadius);
+	ECollisionChannel TraceChannel = ControlledCharacter->GetTraceParams(TraceOrigin, TraceRadius);
 
 	UWorld* World = GetWorld();
 	check(World);
@@ -153,18 +169,13 @@ bool ABMPlayerCameraManager::CustomCameraBehavior(float DeltaTime, FVector& Loca
 
 	// Step 8: Lerp First Person Override and return target camera parameters.
 	FTransform TargetCameraTransform(TargetCameraRotation, TargetCameraLocation, FVector::OneVector);
-	FTransform FPTargetCameraTransform(TargetCameraRotation, FPTarget, FVector::OneVector);
-
-	const FTransform& MixedTransform = UKismetMathLibrary::TLerp(TargetCameraTransform, FPTargetCameraTransform,
-	                                                             GetCameraBehaviorParam(FName(TEXT("Weight_FirstPerson"))));
-
-	const FTransform& TargetTransform = UKismetMathLibrary::TLerp(MixedTransform,
+	const FTransform& TargetTransform = UKismetMathLibrary::TLerp(TargetCameraTransform,
 	                                                              FTransform(DebugViewRotation, TargetCameraLocation, FVector::OneVector),
 	                                                              GetCameraBehaviorParam(FName(TEXT("Override_Debug"))));
 
 	Location = TargetTransform.GetLocation();
 	Rotation = TargetTransform.Rotator();
-	FOV = FMath::Lerp(TPFOV, FPFOV, GetCameraBehaviorParam(FName(TEXT("Weight_FirstPerson"))));
+	FOV = TPFOV;
 
 	return true;
 }

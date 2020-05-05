@@ -39,7 +39,6 @@ void ABMPlayerController::SetupInputComponent()
 	InputComponent->BindAction("AimAction", IE_Pressed, this, &ABMPlayerController::AimPressedAction);
 	InputComponent->BindAction("AimAction", IE_Released, this, &ABMPlayerController::AimReleasedAction);
 	InputComponent->BindAction("CameraAction", IE_Pressed, this, &ABMPlayerController::CameraPressedAction);
-	InputComponent->BindAction("CameraAction", IE_Released, this, &ABMPlayerController::CameraReleasedAction);
 }
 
 void ABMPlayerController::OnPossess(APawn* NewPawn)
@@ -166,57 +165,13 @@ void ABMPlayerController::AimPressedAction()
 
 void ABMPlayerController::AimReleasedAction()
 {
-	const EBMViewMode ViewMode = PossessedCharacter->GetViewMode();
-	if (ViewMode == EBMViewMode::ThirdPerson)
-	{
-		PossessedCharacter->SetRotationMode(PossessedCharacter->GetDesiredRotationMode());
-	}
-	else if (ViewMode == EBMViewMode::FirstPerson)
-	{
-		PossessedCharacter->SetRotationMode(EBMRotationMode::LookingDirection);
-	}
+	PossessedCharacter->SetRotationMode(PossessedCharacter->GetDesiredRotationMode());
 }
 
 void ABMPlayerController::CameraPressedAction()
 {
-	UWorld* World = GetWorld();
-	check(World);
-	CameraActionPressedTime = World->GetTimeSeconds();
-	GetWorldTimerManager().SetTimer(OnCameraModeSwapTimer, this,
-	                                &ABMPlayerController::OnSwitchCameraMode, ViewModeSwitchHoldTime, false);
+	PossessedCharacter->SetRightShoulder(!PossessedCharacter->IsRightShoulder());
 }
-
-void ABMPlayerController::CameraReleasedAction()
-{
-	if (PossessedCharacter->GetViewMode() == EBMViewMode::FirstPerson)
-	{
-		// Don't swap shoulders on first person mode
-		return;
-	}
-	
-	UWorld* World = GetWorld();
-	check(World);
-	if (World->GetTimeSeconds() - CameraActionPressedTime < ViewModeSwitchHoldTime)
-	{
-		// Switch shoulders
-		PossessedCharacter->SetRightShoulder(!PossessedCharacter->IsRightShoulder());
-		GetWorldTimerManager().ClearTimer(OnCameraModeSwapTimer); // Prevent mode change
-	}
-}
-
-void ABMPlayerController::OnSwitchCameraMode()
-{
-	// Switch camera mode
-	if (PossessedCharacter->GetViewMode() == EBMViewMode::FirstPerson)
-	{
-		PossessedCharacter->SetViewMode(EBMViewMode::ThirdPerson);
-	}
-	else if (PossessedCharacter->GetViewMode() == EBMViewMode::ThirdPerson)
-	{
-		PossessedCharacter->SetViewMode(EBMViewMode::FirstPerson);
-	}
-}
-
 
 void ABMPlayerController::StancePressedAction()
 {
